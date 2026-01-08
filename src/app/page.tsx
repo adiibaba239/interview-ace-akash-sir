@@ -217,15 +217,17 @@ export default function Home() {
   };
   
   const goToNextQuestion = () => {
-    if (currentQuestionIndex < questions.length - 1) {
-      setCurrentQuestionIndex(currentQuestionIndex + 1);
-      // We will trigger MCQ generation in an effect
-    } else {
-      setView('completed');
-    }
     setIsAnswerCorrect(null);
     setMcq(null);
     setUserAnswer('');
+    setLearningPlan(null);
+
+    if (currentQuestionIndex < questions.length - 1) {
+      setCurrentQuestionIndex(currentQuestionIndex + 1);
+      setView('assessment');
+    } else {
+      setView('completed');
+    }
   };
 
   useEffect(() => {
@@ -604,3 +606,5 @@ export default function Home() {
     </>
   );
 }
+
+    
