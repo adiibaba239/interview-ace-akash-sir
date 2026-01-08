@@ -28,9 +28,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { assessAnswer, getLearningPlan, parseExcelFile, getSkillsForRole, getStudyGuide } from './actions';
-import type { ExcelData, Question } from '@/lib/types';
-import type { AssessUserAnswerOutput } from '@/ai/flows/assess-user-answer';
-import type { GenerateSkillsOutput } from '@/ai/flows/generate-skills-for-role';
+import type { ExcelData, Question, AssessUserAnswerOutput, GenerateSkillsOutput } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 
@@ -137,7 +135,7 @@ export default function Home() {
         description: result.error,
       });
     } else if (result.data) {
-      setStudyGuide(result.data);
+      setStudyGuide(result.data.studyGuide);
       setView('study_guide');
     }
   };
@@ -189,7 +187,7 @@ export default function Home() {
         description: result.error,
       });
     } else if (result.data) {
-      setLearningPlan(result.data);
+      setLearningPlan(result.data.learningPlan);
       setView('learning');
     }
   };
@@ -394,7 +392,7 @@ export default function Home() {
             <CardFooter className="justify-between">
               <Button variant="ghost" onClick={tryAgain}><ChevronLeft className="mr-2 h-4 w-4" />Try Again</Button>
               <div className="flex gap-2">
-                {isWeak && <Button onClick={handleGetLearningPlan}><Lightbulb className="mr-2 h-4 w-4" />Get Learning Plan</Button>}
+                {isWeak && <Button onClick={handleGetLearningPlan}><Lightbulb className="mr-2 h-4 w-4" />Get LearningPlan</Button>}
                 <Button onClick={goToNextQuestion}>Next Question <ChevronRight className="ml-2 h-4 w-4"/></Button>
               </div>
             </CardFooter>

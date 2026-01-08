@@ -10,3 +10,13 @@ export type ExcelData = {
     [role: string]: Question[];
   };
 };
+
+export type AssessUserAnswerOutput = {
+  score: number;
+  strengths: string;
+  gaps: string;
+};
+
+export type GenerateSkillsOutput = {
+  skills: string[];
+};
