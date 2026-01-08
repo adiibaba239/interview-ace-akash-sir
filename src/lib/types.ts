@@ -16,7 +16,3 @@ export type AssessUserAnswerOutput = {
   strengths: string;
   gaps: string;
 };
-
-export type GenerateSkillsOutput = {
-  skills: string[];
-};

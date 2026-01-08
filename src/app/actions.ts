@@ -3,9 +3,8 @@
 import * as xlsx from 'xlsx';
 import { assessUserAnswer } from '@/ai/flows/assess-user-answer';
 import { generateLearningPlan } from '@/ai/flows/generate-learning-plan';
-import { generateSkillsForRole } from '@/ai/flows/generate-skills-for-role';
-import { generateStudyGuide } from '@/ai/flows/generate-study-guide';
-import type { ExcelData, Question, AssessUserAnswerOutput, GenerateSkillsOutput } from '@/lib/types';
+import { generateLearningPaths } from '@/ai/flows/generate-learning-paths';
+import type { ExcelData, Question, AssessUserAnswerOutput } from '@/lib/types';
 import { z } from 'zod';
 
 // Helper to normalize column headers
@@ -116,22 +115,12 @@ export async function getLearningPlan(input: Parameters<typeof generateLearningP
   }
 }
 
-export async function getSkillsForRole(input: Parameters<typeof generateSkillsForRole>[0]): Promise<{ data?: Awaited<ReturnType<typeof generateSkillsForRole>>, error?: string }> {
+export async function getLearningPaths(input: Parameters<typeof generateLearningPaths>[0]): Promise<{ data?: Awaited<ReturnType<typeof generateLearningPaths>>, error?: string }> {
   try {
-    const result = await generateSkillsForRole(input);
+    const result = await generateLearningPaths(input);
     return { data: result };
   } catch (error) {
-    console.error("AI skills generation error:", error);
-    return { error: "Failed to generate skills from AI. Please try again." };
-  }
-}
-
-export async function getStudyGuide(input: Parameters<typeof generateStudyGuide>[0]): Promise<{ data?: Awaited<ReturnType<typeof generateStudyGuide>>, error?: string }> {
-  try {
-    const result = await generateStudyGuide(input);
-    return { data: result };
-  } catch (error) {
-    console.error("AI study guide error:", error);
-    return { error: "Failed to generate study guide from AI. Please try again." };
+    console.error("AI learning paths generation error:", error);
+    return { error: "Failed to generate learning paths from AI. Please try again." };
   }
 }

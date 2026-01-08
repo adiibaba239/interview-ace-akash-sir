@@ -11,12 +11,10 @@ import {
   LoaderCircle,
   UploadCloud,
   XCircle,
-  FileText,
   Briefcase,
   Sparkles,
   ArrowRight,
   GraduationCap,
-  ListChecks,
 } from 'lucide-react';
 import { Header } from '@/components/Header';
 import { Button } from '@/components/ui/button';
@@ -27,16 +25,15 @@ import { Progress } from '@/components/ui/progress';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { assessAnswer, getLearningPlan, parseExcelFile, getSkillsForRole, getStudyGuide } from './actions';
-import type { ExcelData, Question, AssessUserAnswerOutput, GenerateSkillsOutput } from '@/lib/types';
+import { assessAnswer, getLearningPlan, parseExcelFile, getLearningPaths } from './actions';
+import type { ExcelData, Question, AssessUserAnswerOutput } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 
 type ViewState =
   | 'upload'
   | 'role_select'
-  | 'skills'
-  | 'study_guide'
+  | 'learning_path'
   | 'assessment'
   | 'feedback'
   | 'learning'
@@ -51,8 +48,7 @@ export default function Home() {
   const [assessment, setAssessment] = useState<AssessUserAnswerOutput | null>(null);
   const [learningPlan, setLearningPlan] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [skills, setSkills] = useState<GenerateSkillsOutput | null>(null);
-  const [studyGuide, setStudyGuide] = useState<string | null>(null);
+  const [learningPaths, setLearningPaths] = useState<string | null>(null);
   
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -102,43 +98,26 @@ export default function Home() {
   const handleRoleSelect = async (role: string) => {
     if (!excelData) return;
     setIsLoading(true);
-    const result = await getSkillsForRole({
+    const result = await getLearningPaths({
       roleName: role,
       companyName: excelData.company,
+      questions: excelData.roles[role]?.map(q => q.Question) ?? [],
     });
     setIsLoading(false);
 
     if (result.error) {
       toast({
         variant: 'destructive',
-        title: 'Failed to get skills',
+        title: 'Failed to get Learning Paths',
         description: result.error,
       });
       setView('role_select');
     } else if (result.data) {
-      setSkills(result.data);
-      setView('skills');
+      setLearningPaths(result.data.learningPath);
+      setView('learning_path');
     }
   };
 
-  const handleGetStudyGuide = async () => {
-    if (!skills) return;
-    setIsLoading(true);
-    const result = await getStudyGuide({
-      skills: skills.skills,
-    });
-    setIsLoading(false);
-    if (result.error) {
-      toast({
-        variant: 'destructive',
-        title: 'Failed to create study guide',
-        description: result.error,
-      });
-    } else if (result.data) {
-      setStudyGuide(result.data.studyGuide);
-      setView('study_guide');
-    }
-  };
 
   const handleAnswerSubmit = async () => {
     if (!currentQuestion || !userAnswer.trim()) {
@@ -211,8 +190,7 @@ export default function Home() {
     setUserAnswer('');
     setAssessment(null);
     setLearningPlan(null);
-    setSkills(null);
-    setStudyGuide(null);
+    setLearningPaths(null);
     if(fileInputRef.current) fileInputRef.current.value = '';
   };
   
@@ -222,9 +200,9 @@ export default function Home() {
     setLearningPlan(null);
   };
   
-  const backToSkills = () => {
-    setView('skills');
-    setStudyGuide(null);
+  const backToRoleSelect = () => {
+    setView('role_select');
+    setLearningPaths(null);
   }
   
   const startAssessment = () => {
@@ -242,7 +220,7 @@ export default function Home() {
 
   const renderContent = () => {
     if (isLoading) {
-      return <div className="flex flex-col items-center justify-center gap-4 text-muted-foreground"><LoaderCircle className="h-12 w-12 animate-spin text-primary" /> <p className="text-lg font-medium">Processing...</p></div>;
+      return <div className="flex flex-col items-center justify-center gap-4 text-muted-foreground"><LoaderCircle className="h-12 w-12 animate-spin text-primary" /> <p className="text-lg font-medium">Generating Learning Path...</p></div>;
     }
 
     switch (view) {
@@ -295,44 +273,20 @@ export default function Home() {
           </Card>
         );
       
-      case 'skills':
-        if (!skills) return null;
-        return (
-          <Card className="w-full max-w-2xl mx-auto animate-in fade-in-50 duration-500">
-            <CardHeader>
-              <CardTitle className="font-headline text-3xl flex items-center gap-3"><ListChecks /> Required Skills</CardTitle>
-              <CardDescription>Here are the key skills for a <strong>{selectedRole}</strong> at <strong>{excelData?.company}</strong>.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex flex-wrap gap-2">
-                {skills.skills.map((skill, index) => (
-                  <Badge key={index} variant="secondary" className="text-base">{skill}</Badge>
-                ))}
-              </div>
-              <Separator />
-              <p className="text-sm text-muted-foreground">Review the skills above. Do you want to practice with an assessment or get a study guide first?</p>
-            </CardContent>
-            <CardFooter className="justify-between">
-              <Button variant="ghost" onClick={handleGetStudyGuide}><GraduationCap /> Get Study Guide</Button>
-              <Button onClick={startAssessment}>Start Assessment <ArrowRight className="ml-2 w-4 h-4"/></Button>
-            </CardFooter>
-          </Card>
-        );
-      
-      case 'study_guide':
+      case 'learning_path':
         return (
           <Card className="w-full max-w-3xl mx-auto animate-in fade-in-50 duration-500">
             <CardHeader>
-              <CardTitle className="font-headline text-3xl flex items-center gap-3"><GraduationCap/> Study Guide</CardTitle>
-              <CardDescription>Here are some resources to help you prepare for the <strong>{selectedRole}</strong> role.</CardDescription>
+              <CardTitle className="font-headline text-3xl flex items-center gap-3"><GraduationCap/> Learning Path</CardTitle>
+              <CardDescription>Here is your personalized study plan for the <strong>{selectedRole}</strong> role at <strong>{excelData?.company}</strong>.</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="prose prose-blue dark:prose-invert max-w-none whitespace-pre-wrap rounded-md border bg-secondary/30 p-4 font-code text-sm">
-                {studyGuide}
+                {learningPaths}
               </div>
             </CardContent>
             <CardFooter className="justify-between">
-              <Button variant="ghost" onClick={backToSkills}><ChevronLeft/> Back to Skills</Button>
+              <Button variant="ghost" onClick={backToRoleSelect}><ChevronLeft/> Back to Roles</Button>
               <Button onClick={startAssessment}>I'm Ready! Start Assessment <ArrowRight className="ml-2 w-4 h-4" /></Button>
             </CardFooter>
           </Card>
@@ -359,7 +313,7 @@ export default function Home() {
             </CardContent>
             <CardFooter className="justify-between">
               <Button variant="outline" onClick={startOver}>Start Over</Button>
-              <Button onClick={handleAnswerSubmit}>Submit Answer <ArrowRight className="ml-2 w-4 h-4"/></Button>
+              <Button onClick={handleAnswerSubmit}>Submit Answer <ArrowRight className="ml-2 h-4 h-4"/></Button>
             </CardFooter>
           </Card>
         );
