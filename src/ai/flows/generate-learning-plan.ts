@@ -4,24 +4,25 @@
  * @fileOverview Generates a topic-wise learning plan based on the user's weak areas identified during the assessment.
  *
  * - generateLearningPlan - A function that generates a learning plan.
- * - GenerateLearningPlanInput - The input type for the generateLearningPlan function.
- * - GenerateLearningPlanOutput - The return type for the generateLearningPlan function.
  */
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
-export const GenerateLearningPlanInputSchema = z.object({
-  roleName: z.string().describe('The name of the role the user is preparing for.'),
-  questions: z.array(z.string()).describe('The interview questions asked during the assessment.'),
-  weakAreas: z.string().describe('The weak areas identified in the user assessment.'),
-});
+export async function generateLearningPlan(input: {
+  roleName: string;
+  questions: string[];
+  weakAreas: string;
+}) {
+  const GenerateLearningPlanInputSchema = z.object({
+    roleName: z.string().describe('The name of the role the user is preparing for.'),
+    questions: z.array(z.string()).describe('The interview questions asked during the assessment.'),
+    weakAreas: z.string().describe('The weak areas identified in the user assessment.'),
+  });
 
-export const GenerateLearningPlanOutputSchema = z.object({
-  learningPlan: z.string().describe('A topic-wise learning plan to address the identified weak areas.'),
-});
-
-export async function generateLearningPlan(input: z.infer<typeof GenerateLearningPlanInputSchema>): Promise<z.infer<typeof GenerateLearningPlanOutputSchema>> {
+  const GenerateLearningPlanOutputSchema = z.object({
+    learningPlan: z.string().describe('A topic-wise learning plan to address the identified weak areas.'),
+  });
 
   const generateLearningPlanFlow = ai.defineFlow(
     {
@@ -29,7 +30,7 @@ export async function generateLearningPlan(input: z.infer<typeof GenerateLearnin
       inputSchema: GenerateLearningPlanInputSchema,
       outputSchema: GenerateLearningPlanOutputSchema,
     },
-    async (input) => {
+    async (flowInput) => {
        const prompt = ai.definePrompt({
         name: 'generateLearningPlanPrompt',
         input: {schema: GenerateLearningPlanInputSchema},
@@ -47,7 +48,7 @@ Weak Areas:
 Based on the above information, generate a topic-wise learning plan to address the weak areas. The learning plan should be structured and easy to follow.
 `,
       });
-      const {output} = await prompt(input);
+      const {output} = await prompt(flowInput);
       return output!;
     }
   );

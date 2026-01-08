@@ -4,25 +4,20 @@
  * @fileOverview An AI agent to generate a list of required skills for a specific job role at a company.
  *
  * - generateSkillsForRole - A function that handles the skill generation process.
- * - GenerateSkillsInput - The input type for the generateSkillsForRole function.
- * - GenerateSkillsOutput - The return type for the generateSkillsForRole function.
  */
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
-
-export const GenerateSkillsInputSchema = z.object({
-  roleName: z.string().describe('The name of the role the user is preparing for.'),
-  companyName: z.string().describe('The name of the company.'),
-});
-
-export const GenerateSkillsOutputSchema = z.object({
-  skills: z.array(z.string()).describe('A list of key skills required for the role.'),
-});
-
-
-export async function generateSkillsForRole(input: z.infer<typeof GenerateSkillsInputSchema>): Promise<z.infer<typeof GenerateSkillsOutputSchema>> {
+export async function generateSkillsForRole(input: { roleName: string; companyName: string; }) {
+  const GenerateSkillsInputSchema = z.object({
+    roleName: z.string().describe('The name of the role the user is preparing for.'),
+    companyName: z.string().describe('The name of the company.'),
+  });
+  
+  const GenerateSkillsOutputSchema = z.object({
+    skills: z.array(z.string()).describe('A list of key skills required for the role.'),
+  });
 
   const generateSkillsFlow = ai.defineFlow(
     {
@@ -30,7 +25,7 @@ export async function generateSkillsForRole(input: z.infer<typeof GenerateSkills
       inputSchema: GenerateSkillsInputSchema,
       outputSchema: GenerateSkillsOutputSchema,
     },
-    async (input) => {
+    async (flowInput) => {
       const prompt = ai.definePrompt({
         name: 'generateSkillsPrompt',
         input: {schema: GenerateSkillsInputSchema},
@@ -43,7 +38,7 @@ export async function generateSkillsForRole(input: z.infer<typeof GenerateSkills
 
     Return only the list of skills.`,
       });
-      const {output} = await prompt(input);
+      const {output} = await prompt(flowInput);
       return output!;
     }
   );

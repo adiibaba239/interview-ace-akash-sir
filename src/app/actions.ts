@@ -1,22 +1,12 @@
 'use server';
 
 import * as xlsx from 'xlsx';
-import { assessUserAnswer, AssessUserAnswerInputSchema, AssessUserAnswerOutputSchema } from '@/ai/flows/assess-user-answer';
-import { generateLearningPlan, GenerateLearningPlanInputSchema, GenerateLearningPlanOutputSchema } from '@/ai/flows/generate-learning-plan';
-import { generateSkillsForRole, GenerateSkillsInputSchema, GenerateSkillsOutputSchema } from '@/ai/flows/generate-skills-for-role';
-import { generateStudyGuide, GenerateStudyGuideInputSchema, GenerateStudyGuideOutputSchema } from '@/ai/flows/generate-study-guide';
-import type { ExcelData, Question } from '@/lib/types';
+import { assessUserAnswer } from '@/ai/flows/assess-user-answer';
+import { generateLearningPlan } from '@/ai/flows/generate-learning-plan';
+import { generateSkillsForRole } from '@/ai/flows/generate-skills-for-role';
+import { generateStudyGuide } from '@/ai/flows/generate-study-guide';
+import type { ExcelData, Question, AssessUserAnswerOutput, GenerateSkillsOutput } from '@/lib/types';
 import { z } from 'zod';
-
-type AssessUserAnswerInput = z.infer<typeof AssessUserAnswerInputSchema>;
-type AssessUserAnswerOutput = z.infer<typeof AssessUserAnswerOutputSchema>;
-type GenerateLearningPlanInput = z.infer<typeof GenerateLearningPlanInputSchema>;
-type GenerateLearningPlanOutput = z.infer<typeof GenerateLearningPlanOutputSchema>;
-type GenerateSkillsInput = z.infer<typeof GenerateSkillsInputSchema>;
-type GenerateSkillsOutput = z.infer<typeof GenerateSkillsOutputSchema>;
-type GenerateStudyGuideInput = z.infer<typeof GenerateStudyGuideInputSchema>;
-type GenerateStudyGuideOutput = z.infer<typeof GenerateStudyGuideOutputSchema>;
-
 
 // Helper to normalize column headers
 const normalizeHeader = (header: string) => header.trim().toLowerCase();
@@ -106,7 +96,7 @@ export async function parseExcelFile(
 }
 
 
-export async function assessAnswer(input: AssessUserAnswerInput): Promise<{ data?: AssessUserAnswerOutput, error?: string }> {
+export async function assessAnswer(input: Parameters<typeof assessUserAnswer>[0]): Promise<{ data?: Awaited<ReturnType<typeof assessUserAnswer>>, error?: string }> {
   try {
     const result = await assessUserAnswer(input);
     return { data: result };
@@ -116,7 +106,7 @@ export async function assessAnswer(input: AssessUserAnswerInput): Promise<{ data
   }
 }
 
-export async function getLearningPlan(input: GenerateLearningPlanInput): Promise<{ data?: GenerateLearningPlanOutput, error?: string }> {
+export async function getLearningPlan(input: Parameters<typeof generateLearningPlan>[0]): Promise<{ data?: Awaited<ReturnType<typeof generateLearningPlan>>, error?: string }> {
   try {
     const result = await generateLearningPlan(input);
     return { data: result };
@@ -126,7 +116,7 @@ export async function getLearningPlan(input: GenerateLearningPlanInput): Promise
   }
 }
 
-export async function getSkillsForRole(input: GenerateSkillsInput): Promise<{ data?: GenerateSkillsOutput, error?: string }> {
+export async function getSkillsForRole(input: Parameters<typeof generateSkillsForRole>[0]): Promise<{ data?: Awaited<ReturnType<typeof generateSkillsForRole>>, error?: string }> {
   try {
     const result = await generateSkillsForRole(input);
     return { data: result };
@@ -136,7 +126,7 @@ export async function getSkillsForRole(input: GenerateSkillsInput): Promise<{ da
   }
 }
 
-export async function getStudyGuide(input: GenerateStudyGuideInput): Promise<{ data?: GenerateStudyGuideOutput, error?: string }> {
+export async function getStudyGuide(input: Parameters<typeof generateStudyGuide>[0]): Promise<{ data?: Awaited<ReturnType<typeof generateStudyGuide>>, error?: string }> {
   try {
     const result = await generateStudyGuide(input);
     return { data: result };

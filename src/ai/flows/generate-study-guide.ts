@@ -4,31 +4,27 @@
  * @fileOverview Generates a study guide with learning resources and links for a given list of skills.
  *
  * - generateStudyGuide - A function that generates the study guide.
- * - GenerateStudyGuideInput - The input type for the generateStudyGuide function.
- * - GenerateStudyGuideOutput - The return type for the generateStudyGuide function.
  */
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
+export async function generateStudyGuide(input: { skills: string[]; }) {
+  const GenerateStudyGuideInputSchema = z.object({
+    skills: z.array(z.string()).describe('The list of skills to generate a study guide for.'),
+  });
+  
+  const GenerateStudyGuideOutputSchema = z.object({
+    studyGuide: z.string().describe('A markdown-formatted study guide with topics and links to learning resources.'),
+  });
 
-export const GenerateStudyGuideInputSchema = z.object({
-  skills: z.array(z.string()).describe('The list of skills to generate a study guide for.'),
-});
-
-export const GenerateStudyGuideOutputSchema = z.object({
-  studyGuide: z.string().describe('A markdown-formatted study guide with topics and links to learning resources.'),
-});
-
-
-export async function generateStudyGuide(input: z.infer<typeof GenerateStudyGuideInputSchema>): Promise<z.infer<typeof GenerateStudyGuideOutputSchema>> {
   const generateStudyGuideFlow = ai.defineFlow(
     {
       name: 'generateStudyGuideFlow',
       inputSchema: GenerateStudyGuideInputSchema,
       outputSchema: GenerateStudyGuideOutputSchema,
     },
-    async input => {
+    async (flowInput) => {
       const prompt = ai.definePrompt({
         name: 'generateStudyGuidePrompt',
         input: {schema: GenerateStudyGuideInputSchema},
@@ -50,7 +46,7 @@ export async function generateStudyGuide(input: z.infer<typeof GenerateStudyGuid
     Generate the study guide based on the provided skills.
     `,
       });
-      const {output} = await prompt(input);
+      const {output} = await prompt(flowInput);
       return output!;
     }
   );
