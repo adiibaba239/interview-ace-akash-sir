@@ -361,22 +361,24 @@ export default function Home() {
       case 'role_select':
          if (!excelData) return null;
          return (
-          <Card className="w-full max-w-lg mx-auto animate-in fade-in-50 duration-500">
+          <Card className="w-full max-w-2xl mx-auto animate-in fade-in-50 duration-500">
             <CardHeader>
               <CardTitle className="font-headline text-3xl flex items-center gap-3"><Briefcase className="w-8 h-8"/>{excelData.company}</CardTitle>
               <CardDescription>Select a role to start your preparation.</CardDescription>
             </CardHeader>
             <CardContent>
-              <Select onValueChange={setSelectedRole} value={selectedRole}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a role..." />
-                </SelectTrigger>
-                <SelectContent>
+               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                   {Object.keys(excelData.roles).map(role => (
-                    <SelectItem key={role} value={role}>{role}</SelectItem>
+                    <Button 
+                      key={role} 
+                      variant="outline" 
+                      className="h-20 text-lg"
+                      onClick={() => setSelectedRole(role)}
+                    >
+                      {role}
+                    </Button>
                   ))}
-                </SelectContent>
-              </Select>
+                </div>
             </CardContent>
              <CardFooter>
                 <Button variant="outline" onClick={startOver}>Start Over</Button>
@@ -606,5 +608,3 @@ export default function Home() {
     </>
   );
 }
-
-    
