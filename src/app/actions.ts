@@ -110,8 +110,6 @@ export async function getLearningPlan(input: {
 
 export async function getLearningPaths(input: {
   roleName: string;
-  companyName: string;
-  questions: string[];
 }): Promise<{ data?: LearningPath, error?: string }> {
   try {
     const result = await generateLearningPaths(input);

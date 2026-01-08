@@ -1,7 +1,7 @@
 'use server';
 
 /**
- * @fileOverview Generates a structured learning path with topics and resources based on a role, company, and questions.
+ * @fileOverview Generates a structured learning path with topics and resources based on a role.
  *
  * - generateLearningPaths - A function that generates the learning path.
  */
@@ -11,8 +11,6 @@ import {z} from 'genkit';
 
 export async function generateLearningPaths(input: {
   roleName: string;
-  companyName: string;
-  questions: string[];
 }) {
   const ResourceSchema = z.object({
     title: z.string().describe('The title of the learning resource.'),
@@ -38,8 +36,6 @@ export async function generateLearningPaths(input: {
       name: 'generateLearningPathsFlow',
       inputSchema: z.object({
         roleName: z.string(),
-        companyName: z.string(),
-        questions: z.array(z.string()),
       }),
       outputSchema: GenerateLearningPathsOutputSchema,
     },
@@ -48,18 +44,15 @@ export async function generateLearningPaths(input: {
         name: 'generateLearningPathsPrompt',
         input: {schema: z.any()},
         output: {schema: GenerateLearningPathsOutputSchema},
-        prompt: `You are an expert career coach. Based on the provided role, company, and sample questions, generate a structured learning path.
+        prompt: `You are an expert career coach. Your task is to generate a structured learning path for a specific job role.
 
-First, identify the top 5-7 most critical skills for the role.
+Identify the top 5-7 most critical skills required for this role.
 
-Then, for each skill, provide a one-sentence description and 2-3 public online resources (articles, tutorials, docs) for learning.
+For each skill, provide a concise one-sentence description and a list of 2-3 public online learning resources (like articles, tutorials, or official documentation).
 
-Return the output as a JSON object that satisfies the output schema.
+Return the output as a JSON object that strictly adheres to the output schema.
 
 **Role:** {{roleName}}
-**Company:** {{companyName}}
-**Sample Questions:**
-{{#each questions}}- {{this}}\n{{/each}}
 `,
       });
       const {output} = await prompt(flowInput);

@@ -133,8 +133,6 @@ export default function Home() {
     setCompletedSkills([]);
     const result = await getLearningPaths({
       roleName: role,
-      companyName: excelData.company,
-      questions: excelData.roles[role]?.map(q => q.Question) ?? [],
     });
     setIsLoading(false);
     setLoadingMessage('');
