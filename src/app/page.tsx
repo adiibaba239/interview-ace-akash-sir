@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useRef, type FormEvent } from 'react';
+import { useState, useMemo, useRef, type FormEvent, useEffect } from 'react';
 import {
   BookOpen,
   BrainCircuit,
@@ -14,7 +14,9 @@ import {
   FileText,
   Briefcase,
   Sparkles,
-  ArrowRight
+  ArrowRight,
+  GraduationCap,
+  ListChecks,
 } from 'lucide-react';
 import { Header } from '@/components/Header';
 import { Button } from '@/components/ui/button';
@@ -25,14 +27,18 @@ import { Progress } from '@/components/ui/progress';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { assessAnswer, getLearningPlan, parseExcelFile } from './actions';
+import { assessAnswer, getLearningPlan, parseExcelFile, getSkillsForRole, getStudyGuide } from './actions';
 import type { ExcelData, Question } from '@/lib/types';
 import type { AssessUserAnswerOutput } from '@/ai/flows/assess-user-answer';
+import type { GenerateSkillsOutput } from '@/ai/flows/generate-skills-for-role';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 
-type ViewState = 
+type ViewState =
   | 'upload'
+  | 'role_select'
+  | 'skills'
+  | 'study_guide'
   | 'assessment'
   | 'feedback'
   | 'learning'
@@ -47,6 +53,8 @@ export default function Home() {
   const [assessment, setAssessment] = useState<AssessUserAnswerOutput | null>(null);
   const [learningPlan, setLearningPlan] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [skills, setSkills] = useState<GenerateSkillsOutput | null>(null);
+  const [studyGuide, setStudyGuide] = useState<string | null>(null);
   
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -78,17 +86,60 @@ export default function Home() {
       });
     } else if (result.data) {
       setExcelData(result.data);
-      // If there is only one role, select it automatically
+      setView('role_select');
       const roles = Object.keys(result.data.roles);
       if (roles.length === 1) {
-        handleRoleSelect(roles[0]);
+        setSelectedRole(roles[0]);
       }
     }
   };
 
-  const handleRoleSelect = (role: string) => {
-    setSelectedRole(role);
-    setView('assessment');
+  useEffect(() => {
+    if (selectedRole && excelData) {
+      handleRoleSelect(selectedRole);
+    }
+  }, [selectedRole]);
+
+
+  const handleRoleSelect = async (role: string) => {
+    if (!excelData) return;
+    setIsLoading(true);
+    const result = await getSkillsForRole({
+      roleName: role,
+      companyName: excelData.company,
+    });
+    setIsLoading(false);
+
+    if (result.error) {
+      toast({
+        variant: 'destructive',
+        title: 'Failed to get skills',
+        description: result.error,
+      });
+      setView('role_select');
+    } else if (result.data) {
+      setSkills(result.data);
+      setView('skills');
+    }
+  };
+
+  const handleGetStudyGuide = async () => {
+    if (!skills) return;
+    setIsLoading(true);
+    const result = await getStudyGuide({
+      skills: skills.skills,
+    });
+    setIsLoading(false);
+    if (result.error) {
+      toast({
+        variant: 'destructive',
+        title: 'Failed to create study guide',
+        description: result.error,
+      });
+    } else if (result.data) {
+      setStudyGuide(result.data);
+      setView('study_guide');
+    }
   };
 
   const handleAnswerSubmit = async () => {
@@ -162,6 +213,8 @@ export default function Home() {
     setUserAnswer('');
     setAssessment(null);
     setLearningPlan(null);
+    setSkills(null);
+    setStudyGuide(null);
     if(fileInputRef.current) fileInputRef.current.value = '';
   };
   
@@ -170,71 +223,129 @@ export default function Home() {
     setAssessment(null);
     setLearningPlan(null);
   };
+  
+  const backToSkills = () => {
+    setView('skills');
+    setStudyGuide(null);
+  }
+  
+  const startAssessment = () => {
+    if (questions.length === 0) {
+      toast({
+        variant: 'destructive',
+        title: 'No Questions Found',
+        description: `There are no questions for the role "${selectedRole}". Please upload a file with questions.`,
+      });
+       setView('role_select');
+      return;
+    }
+    setView('assessment');
+  };
 
   const renderContent = () => {
     if (isLoading) {
       return <div className="flex flex-col items-center justify-center gap-4 text-muted-foreground"><LoaderCircle className="h-12 w-12 animate-spin text-primary" /> <p className="text-lg font-medium">Processing...</p></div>;
     }
 
-    if (!excelData) {
-      return (
-        <Card className="w-full max-w-lg mx-auto animate-in fade-in-50 duration-500">
-          <form onSubmit={handleFileUpload}>
+    switch (view) {
+      case 'upload':
+        return (
+          <Card className="w-full max-w-lg mx-auto animate-in fade-in-50 duration-500">
+            <form onSubmit={handleFileUpload}>
+              <CardHeader>
+                <CardTitle className="font-headline text-3xl flex items-center gap-3"><UploadCloud className="w-8 h-8"/> Get Started</CardTitle>
+                <CardDescription>Upload your interview prep Excel or CSV file to begin.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Label htmlFor="file-upload" className="sr-only">Upload File</Label>
+                <Input id="file-upload" name="file" type="file" required accept=".xlsx,.csv" ref={fileInputRef} className="text-foreground" />
+                <p className="text-xs text-muted-foreground mt-2">File name will be used as the company name (e.g., Amazon.xlsx).</p>
+              </CardContent>
+              <CardFooter>
+                <Button type="submit" className="w-full">
+                  <Sparkles className="mr-2 h-4 w-4" />
+                  Upload and Analyze
+                </Button>
+              </CardFooter>
+            </form>
+          </Card>
+        );
+
+      case 'role_select':
+         if (!excelData) return null;
+         return (
+          <Card className="w-full max-w-lg mx-auto animate-in fade-in-50 duration-500">
             <CardHeader>
-              <CardTitle className="font-headline text-3xl flex items-center gap-3"><UploadCloud className="w-8 h-8"/> Get Started</CardTitle>
-              <CardDescription>Upload your interview prep Excel or CSV file to begin.</CardDescription>
+              <CardTitle className="font-headline text-3xl flex items-center gap-3"><Briefcase className="w-8 h-8"/>{excelData.company}</CardTitle>
+              <CardDescription>Select a role to start your preparation.</CardDescription>
             </CardHeader>
             <CardContent>
-              <Label htmlFor="file-upload" className="sr-only">Upload File</Label>
-              <Input id="file-upload" name="file" type="file" required accept=".xlsx,.csv" ref={fileInputRef} className="text-foreground" />
-              <p className="text-xs text-muted-foreground mt-2">File name will be used as the company name (e.g., Amazon.xlsx).</p>
+              <Select onValueChange={setSelectedRole} value={selectedRole}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a role..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.keys(excelData.roles).map(role => (
+                    <SelectItem key={role} value={role}>{role}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </CardContent>
-            <CardFooter>
-              <Button type="submit" className="w-full">
-                <Sparkles className="mr-2 h-4 w-4" />
-                Upload and Analyze
-              </Button>
-            </CardFooter>
-          </form>
-        </Card>
-      );
-    }
-    
-    if (!selectedRole) {
-       return (
-        <Card className="w-full max-w-lg mx-auto animate-in fade-in-50 duration-500">
-          <CardHeader>
-            <CardTitle className="font-headline text-3xl flex items-center gap-3"><Briefcase className="w-8 h-8"/>{excelData.company}</CardTitle>
-            <CardDescription>Select a role to start your assessment.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Select onValueChange={handleRoleSelect}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select a role..." />
-              </SelectTrigger>
-              <SelectContent>
-                {Object.keys(excelData.roles).map(role => (
-                  <SelectItem key={role} value={role}>{role}</SelectItem>
+             <CardFooter>
+                <Button variant="outline" onClick={startOver}>Start Over</Button>
+              </CardFooter>
+          </Card>
+        );
+      
+      case 'skills':
+        if (!skills) return null;
+        return (
+          <Card className="w-full max-w-2xl mx-auto animate-in fade-in-50 duration-500">
+            <CardHeader>
+              <CardTitle className="font-headline text-3xl flex items-center gap-3"><ListChecks /> Required Skills</CardTitle>
+              <CardDescription>Here are the key skills for a <strong>{selectedRole}</strong> at <strong>{excelData?.company}</strong>.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex flex-wrap gap-2">
+                {skills.skills.map((skill, index) => (
+                  <Badge key={index} variant="secondary" className="text-base">{skill}</Badge>
                 ))}
-              </SelectContent>
-            </Select>
-          </CardContent>
-           <CardFooter>
-              <Button variant="outline" onClick={startOver}>Start Over</Button>
+              </div>
+              <Separator />
+              <p className="text-sm text-muted-foreground">Review the skills above. Do you want to practice with an assessment or get a study guide first?</p>
+            </CardContent>
+            <CardFooter className="justify-between">
+              <Button variant="ghost" onClick={handleGetStudyGuide}><GraduationCap /> Get Study Guide</Button>
+              <Button onClick={startAssessment}>Start Assessment <ArrowRight className="ml-2 w-4 h-4"/></Button>
             </CardFooter>
-        </Card>
-      );
-    }
-    
-    const progressValue = ((currentQuestionIndex + 1) / questions.length) * 100;
+          </Card>
+        );
+      
+      case 'study_guide':
+        return (
+          <Card className="w-full max-w-3xl mx-auto animate-in fade-in-50 duration-500">
+            <CardHeader>
+              <CardTitle className="font-headline text-3xl flex items-center gap-3"><GraduationCap/> Study Guide</CardTitle>
+              <CardDescription>Here are some resources to help you prepare for the <strong>{selectedRole}</strong> role.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="prose prose-blue dark:prose-invert max-w-none whitespace-pre-wrap rounded-md border bg-secondary/30 p-4 font-code text-sm">
+                {studyGuide}
+              </div>
+            </CardContent>
+            <CardFooter className="justify-between">
+              <Button variant="ghost" onClick={backToSkills}><ChevronLeft/> Back to Skills</Button>
+              <Button onClick={startAssessment}>I'm Ready! Start Assessment <ArrowRight className="ml-2 w-4 h-4" /></Button>
+            </CardFooter>
+          </Card>
+        );
 
-    switch (view) {
       case 'assessment':
         return (
           <Card className="w-full max-w-3xl mx-auto animate-in fade-in-50 duration-500">
              <CardHeader>
               <p className="text-sm font-medium text-primary">{selectedRole} Assessment</p>
-              <Progress value={progressValue} className="w-full h-2" />
+              <Progress value={((currentQuestionIndex + 1) / questions.length) * 100} className="w-full h-2" />
               <CardTitle className="font-headline text-2xl pt-4">{currentQuestion?.Question}</CardTitle>
               {currentQuestion?.Difficulty && <Badge variant="secondary" className="w-fit">{currentQuestion.Difficulty}</Badge>}
             </CardHeader>
@@ -302,7 +413,7 @@ export default function Home() {
               </div>
             </CardContent>
             <CardFooter className="justify-end">
-              <Button onClick={tryAgain}>Back to Assessment <ArrowRight className="ml-2 w-4 h-4" /></Button>
+               <Button onClick={goToNextQuestion}>Next Question <ChevronRight className="ml-2 h-4 w-4"/></Button>
             </CardFooter>
           </Card>
         );
@@ -317,10 +428,11 @@ export default function Home() {
               <CardDescription>You've completed all questions for the {selectedRole} role.</CardDescription>
             </CardHeader>
             <CardContent>
-              <p>Great job! You can now start over with a new file or a different role.</p>
+              <p>You can now start a mock interview, or start over with a new file or a different role.</p>
             </CardContent>
-            <CardFooter>
-              <Button onClick={startOver} className="w-full">Start New Assessment</Button>
+            <CardFooter className="flex-col gap-2">
+               <Button disabled className="w-full">Start Mock Interview (Coming Soon)</Button>
+              <Button onClick={startOver} className="w-full" variant="outline">Start New Assessment</Button>
             </CardFooter>
           </Card>
         );

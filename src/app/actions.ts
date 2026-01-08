@@ -3,6 +3,8 @@
 import * as xlsx from 'xlsx';
 import { assessUserAnswer, AssessUserAnswerInput, AssessUserAnswerOutput } from '@/ai/flows/assess-user-answer';
 import { generateLearningPlan, GenerateLearningPlanInput } from '@/ai/flows/generate-learning-plan';
+import { generateSkillsForRole, GenerateSkillsInput, GenerateSkillsOutput } from '@/ai/flows/generate-skills-for-role';
+import { generateStudyGuide, GenerateStudyGuideInput } from '@/ai/flows/generate-study-guide';
 import type { ExcelData, Question } from '@/lib/types';
 
 // Helper to normalize column headers
@@ -110,5 +112,25 @@ export async function getLearningPlan(input: GenerateLearningPlanInput): Promise
   } catch (error) {
     console.error("AI learning plan error:", error);
     return { error: "Failed to generate learning plan from AI. Please try again." };
+  }
+}
+
+export async function getSkillsForRole(input: GenerateSkillsInput): Promise<{ data?: GenerateSkillsOutput, error?: string }> {
+  try {
+    const result = await generateSkillsForRole(input);
+    return { data: result };
+  } catch (error) {
+    console.error("AI skills generation error:", error);
+    return { error: "Failed to generate skills from AI. Please try again." };
+  }
+}
+
+export async function getStudyGuide(input: GenerateStudyGuideInput): Promise<{ data?: string, error?: string }> {
+  try {
+    const result = await generateStudyGuide(input);
+    return { data: result.studyGuide };
+  } catch (error) {
+    console.error("AI study guide error:", error);
+    return { error: "Failed to generate study guide from AI. Please try again." };
   }
 }
