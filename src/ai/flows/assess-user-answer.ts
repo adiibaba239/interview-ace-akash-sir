@@ -12,30 +12,28 @@
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
+export type AssessUserAnswerInput = z.infer<typeof AssessUserAnswerInputSchema>;
 const AssessUserAnswerInputSchema = z.object({
   question: z.string().describe('The interview question.'),
-  userAnswer: z.string().describe('The user\u2019s answer to the question.'),
+  userAnswer: z.string().describe('The user’s answer to the question.'),
   expectedAnswer: z.string().optional().describe('The expected answer to the question, if available.'),
   role: z.string().describe('The role the user is interviewing for.'),
 });
-export type AssessUserAnswerInput = z.infer<typeof AssessUserAnswerInputSchema>;
 
-const AssessUserAnswerOutputSchema = z.object({
-  score: z.number().describe('A score (0-100) representing the quality of the user\u2019s answer.'),
-  strengths: z.string().describe('A summary of the strengths of the user\u2019s answer.'),
-  gaps: z.string().describe('A summary of the gaps or areas for improvement in the user\u2019s answer.'),
-});
 export type AssessUserAnswerOutput = z.infer<typeof AssessUserAnswerOutputSchema>;
+const AssessUserAnswerOutputSchema = z.object({
+  score: z.number().describe('A score (0-100) representing the quality of the user’s answer.'),
+  strengths: z.string().describe('A summary of the strengths of the user’s answer.'),
+  gaps: z.string().describe('A summary of the gaps or areas for improvement in the user’s answer.'),
+});
+
 
 export async function assessUserAnswer(input: AssessUserAnswerInput): Promise<AssessUserAnswerOutput> {
-  return assessUserAnswerFlow(input);
-}
-
-const prompt = ai.definePrompt({
-  name: 'assessUserAnswerPrompt',
-  input: {schema: AssessUserAnswerInputSchema},
-  output: {schema: AssessUserAnswerOutputSchema},
-  prompt: `You are an AI interview coach. Your task is to assess a candidate\'s answer to an interview question.
+  const prompt = ai.definePrompt({
+    name: 'assessUserAnswerPrompt',
+    input: {schema: AssessUserAnswerInputSchema},
+    output: {schema: AssessUserAnswerOutputSchema},
+    prompt: `You are an AI interview coach. Your task is to assess a candidate\'s answer to an interview question.
 
       Here is the role the candidate is interviewing for: {{{role}}}
 
@@ -55,16 +53,19 @@ const prompt = ai.definePrompt({
       Score:
       Strengths:
       Gaps:`,
-});
+  });
 
-const assessUserAnswerFlow = ai.defineFlow(
-  {
-    name: 'assessUserAnswerFlow',
-    inputSchema: AssessUserAnswerInputSchema,
-    outputSchema: AssessUserAnswerOutputSchema,
-  },
-  async input => {
-    const {output} = await prompt(input);
-    return output!;
-  }
-);
+  const assessUserAnswerFlow = ai.defineFlow(
+    {
+      name: 'assessUserAnswerFlow',
+      inputSchema: AssessUserAnswerInputSchema,
+      outputSchema: AssessUserAnswerOutputSchema,
+    },
+    async (input) => {
+      const {output} = await prompt(input);
+      return output!;
+    }
+  );
+
+  return assessUserAnswerFlow(input);
+}

@@ -11,25 +11,23 @@
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
+export type GenerateStudyGuideInput = z.infer<typeof GenerateStudyGuideInputSchema>;
 export const GenerateStudyGuideInputSchema = z.object({
   skills: z.array(z.string()).describe('The list of skills to generate a study guide for.'),
 });
-export type GenerateStudyGuideInput = z.infer<typeof GenerateStudyGuideInputSchema>;
 
+export type GenerateStudyGuideOutput = z.infer<typeof GenerateStudyGuideOutputSchema>;
 export const GenerateStudyGuideOutputSchema = z.object({
   studyGuide: z.string().describe('A markdown-formatted study guide with topics and links to learning resources.'),
 });
-export type GenerateStudyGuideOutput = z.infer<typeof GenerateStudyGuideOutputSchema>;
+
 
 export async function generateStudyGuide(input: GenerateStudyGuideInput): Promise<GenerateStudyGuideOutput> {
-  return generateStudyGuideFlow(input);
-}
-
-const prompt = ai.definePrompt({
-  name: 'generateStudyGuidePrompt',
-  input: {schema: GenerateStudyGuideInputSchema},
-  output: {schema: GenerateStudyGuideOutputSchema},
-  prompt: `You are an expert learning and development coach. Your goal is to generate a helpful study guide for a user trying to learn a set of skills for a job interview.
+  const prompt = ai.definePrompt({
+    name: 'generateStudyGuidePrompt',
+    input: {schema: GenerateStudyGuideInputSchema},
+    output: {schema: GenerateStudyGuideOutputSchema},
+    prompt: `You are an expert learning and development coach. Your goal is to generate a helpful study guide for a user trying to learn a set of skills for a job interview.
 
     Skills to learn:
     {{#each skills}}- {{this}}\n{{/each}}
@@ -45,16 +43,19 @@ const prompt = ai.definePrompt({
 
     Generate the study guide based on the provided skills.
     `,
-});
+  });
 
-const generateStudyGuideFlow = ai.defineFlow(
-  {
-    name: 'generateStudyGuideFlow',
-    inputSchema: GenerateStudyGuideInputSchema,
-    outputSchema: GenerateStudyGuideOutputSchema,
-  },
-  async input => {
-    const {output} = await prompt(input);
-    return output!;
-  }
-);
+  const generateStudyGuideFlow = ai.defineFlow(
+    {
+      name: 'generateStudyGuideFlow',
+      inputSchema: GenerateStudyGuideInputSchema,
+      outputSchema: GenerateStudyGuideOutputSchema,
+    },
+    async input => {
+      const {output} = await prompt(input);
+      return output!;
+    }
+  );
+  
+  return generateStudyGuideFlow(input);
+}

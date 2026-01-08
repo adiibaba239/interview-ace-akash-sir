@@ -1,10 +1,10 @@
 'use server';
 
 import * as xlsx from 'xlsx';
-import { assessUserAnswer, AssessUserAnswerInput, AssessUserAnswerOutput } from '@/ai/flows/assess-user-answer';
-import { generateLearningPlan, GenerateLearningPlanInput } from '@/ai/flows/generate-learning-plan';
-import { generateSkillsForRole, GenerateSkillsInput, GenerateSkillsOutput } from '@/ai/flows/generate-skills-for-role';
-import { generateStudyGuide, GenerateStudyGuideInput } from '@/ai/flows/generate-study-guide';
+import { assessUserAnswer, type AssessUserAnswerInput, type AssessUserAnswerOutput } from '@/ai/flows/assess-user-answer';
+import { generateLearningPlan, type GenerateLearningPlanInput } from '@/ai/flows/generate-learning-plan';
+import { generateSkillsForRole, type GenerateSkillsInput, type GenerateSkillsOutput } from '@/ai/flows/generate-skills-for-role';
+import { generateStudyGuide, type GenerateStudyGuideInput } from '@/ai/flows/generate-study-guide';
 import type { ExcelData, Question } from '@/lib/types';
 
 // Helper to normalize column headers
