@@ -78,6 +78,11 @@ export default function Home() {
       });
     } else if (result.data) {
       setExcelData(result.data);
+      // If there is only one role, select it automatically
+      const roles = Object.keys(result.data.roles);
+      if (roles.length === 1) {
+        handleRoleSelect(roles[0]);
+      }
     }
   };
 
@@ -177,11 +182,11 @@ export default function Home() {
           <form onSubmit={handleFileUpload}>
             <CardHeader>
               <CardTitle className="font-headline text-3xl flex items-center gap-3"><UploadCloud className="w-8 h-8"/> Get Started</CardTitle>
-              <CardDescription>Upload your interview prep Excel file to begin.</CardDescription>
+              <CardDescription>Upload your interview prep Excel or CSV file to begin.</CardDescription>
             </CardHeader>
             <CardContent>
-              <Label htmlFor="file-upload" className="sr-only">Upload Excel File</Label>
-              <Input id="file-upload" name="file" type="file" required accept=".xlsx" ref={fileInputRef} className="text-foreground" />
+              <Label htmlFor="file-upload" className="sr-only">Upload File</Label>
+              <Input id="file-upload" name="file" type="file" required accept=".xlsx,.csv" ref={fileInputRef} className="text-foreground" />
               <p className="text-xs text-muted-foreground mt-2">File name will be used as the company name (e.g., Amazon.xlsx).</p>
             </CardContent>
             <CardFooter>

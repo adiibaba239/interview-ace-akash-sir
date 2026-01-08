@@ -16,24 +16,33 @@ export async function parseExcelFile(
   if (!file || file.size === 0) {
     return { error: 'No file uploaded.' };
   }
-
-  if (!file.name.toLowerCase().endsWith('.xlsx')) {
-    return { error: 'Invalid file type. Please upload a .xlsx file.' };
+  
+  const lowerCaseFileName = file.name.toLowerCase();
+  if (!lowerCaseFileName.endsWith('.xlsx') && !lowerCaseFileName.endsWith('.csv')) {
+    return { error: 'Invalid file type. Please upload a .xlsx or .csv file.' };
   }
 
   try {
-    const companyName = file.name.replace(/\.xlsx$/i, '');
+    const companyName = file.name.replace(/\.(xlsx|csv)$/i, '');
     const bytes = await file.arrayBuffer();
     const workbook = xlsx.read(bytes, { type: 'buffer' });
 
     if (workbook.SheetNames.length === 0) {
-      return { error: 'The uploaded Excel file contains no sheets (roles).' };
+      return { error: 'The uploaded file contains no data.' };
     }
 
     const roles: { [role: string]: Question[] } = {};
+    const isCsv = lowerCaseFileName.endsWith('.csv');
+    const sheetNames = isCsv ? [companyName] : workbook.SheetNames;
+    const workbookSheets = isCsv ? {[companyName]: workbook.Sheets[workbook.SheetNames[0]]} : workbook.Sheets;
 
-    for (const sheetName of workbook.SheetNames) {
-      const worksheet = workbook.Sheets[sheetName];
+
+    for (const sheetName of sheetNames) {
+      const worksheet = workbookSheets[sheetName];
+      if (!worksheet) { // Handle case where sheet might not exist (e.g. csv naming mismatch)
+          roles[sheetName] = [];
+          continue;
+      }
       const jsonData: any[] = xlsx.utils.sheet_to_json(worksheet);
 
       if (jsonData.length === 0) {
@@ -67,10 +76,19 @@ export async function parseExcelFile(
         .filter((q): q is Question => q !== null);
     }
 
-    return { data: { company: companyName, roles } };
+    const finalRoles = isCsv ? { [companyName]: roles[companyName] } : roles;
+    const finalData = { company: companyName, roles: finalRoles };
+    
+    // For CSV, if there are no roles, but there are questions, we assume the CSV is the role.
+    if(isCsv && finalData.roles[companyName] && finalData.roles[companyName].length > 0) {
+        if(!finalData.roles[companyName]) finalData.roles[companyName] = [];
+    }
+
+
+    return { data: finalData };
   } catch (err) {
-    console.error('Excel parsing error:', err);
-    return { error: 'Failed to parse the Excel file. Please ensure it is a valid .xlsx file and not corrupted.' };
+    console.error('File parsing error:', err);
+    return { error: 'Failed to parse the file. Please ensure it is a valid file and not corrupted.' };
   }
 }
 
