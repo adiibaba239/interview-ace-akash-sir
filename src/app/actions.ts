@@ -4,6 +4,7 @@ import * as xlsx from 'xlsx';
 import { generateLearningPlan } from '@/ai/flows/generate-learning-plan';
 import { generateLearningPaths } from '@/ai/flows/generate-learning-paths';
 import { generateMcq } from '@/ai/flows/generate-mcq';
+import { generateAudio } from '@/ai/flows/generate-audio';
 import type { ExcelData, Question, LearningPath, Mcq } from '@/lib/types';
 
 // Helper to normalize column headers
@@ -131,5 +132,17 @@ export async function getMcq(input: {
   } catch (error) {
     console.error("AI MCQ generation error:", error);
     return { error: "Failed to generate MCQ from AI. Please try again." };
+  }
+}
+
+export async function getAudio(
+  text: string
+): Promise<{ data?: string; error?: string }> {
+  try {
+    const result = await generateAudio(text);
+    return { data: result.media };
+  } catch (error) {
+    console.error('AI audio generation error:', error);
+    return { error: 'Failed to generate audio from AI. Please try again.' };
   }
 }

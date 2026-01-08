@@ -16,6 +16,9 @@ import {
   ArrowRight,
   GraduationCap,
   LinkIcon,
+  Mic,
+  Play,
+  StopCircle,
 } from 'lucide-react';
 import { Header } from '@/components/Header';
 import { Button } from '@/components/ui/button';
@@ -25,7 +28,7 @@ import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { getLearningPlan, parseExcelFile, getLearningPaths, getMcq } from './actions';
+import { getLearningPlan, parseExcelFile, getLearningPaths, getMcq, getAudio } from './actions';
 import type { ExcelData, Question, Mcq, LearningPath } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
@@ -39,7 +42,16 @@ type ViewState =
   | 'assessment'
   | 'feedback'
   | 'learning'
-  | 'completed';
+  | 'completed'
+  | 'mock_interview';
+
+type InterviewState =
+  | 'idle'
+  | 'generating_audio'
+  | 'speaking_question'
+  | 'listening'
+  | 'evaluating'
+  | 'showing_feedback';
 
 export default function Home() {
   const [view, setView] = useState<ViewState>('upload');
@@ -54,6 +66,12 @@ export default function Home() {
   const [loadingMessage, setLoadingMessage] = useState('');
   const [learningPaths, setLearningPaths] = useState<LearningPath | null>(null);
   const [completedSkills, setCompletedSkills] = useState<string[]>([]);
+  
+  // Mock Interview State
+  const [interviewState, setInterviewState] = useState<InterviewState>('idle');
+  const [questionAudio, setQuestionAudio] = useState<string | null>(null);
+  const audioRef = useRef<HTMLAudioElement>(null);
+
 
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -101,10 +119,10 @@ export default function Home() {
   };
 
   useEffect(() => {
-    if (selectedRole && excelData) {
+    if (selectedRole && excelData && view === 'role_select') {
       handleRoleSelect(selectedRole);
     }
-  }, [selectedRole, excelData]);
+  }, [selectedRole, excelData, view]);
 
 
   const handleRoleSelect = async (role: string) => {
@@ -229,6 +247,8 @@ export default function Home() {
     setLearningPlan(null);
     setLearningPaths(null);
     setCompletedSkills([]);
+    setInterviewState('idle');
+    setQuestionAudio(null);
     if(fileInputRef.current) fileInputRef.current.value = '';
   };
   
@@ -259,6 +279,20 @@ export default function Home() {
     setCurrentQuestionIndex(0);
     setView('assessment');
   };
+  
+  const startMockInterview = () => {
+    if (questions.length === 0) {
+        toast({
+            title: 'No Questions Found',
+            description: `No questions available for the role "${selectedRole}".`,
+            variant: 'destructive',
+        });
+        return;
+    }
+    setCurrentQuestionIndex(0);
+    setView('mock_interview');
+    setInterviewState('idle');
+  }
 
   const handleSkillCompletion = (skillName: string, isChecked: boolean) => {
     setCompletedSkills(prev => {
@@ -269,6 +303,26 @@ export default function Home() {
       }
     })
   }
+
+  const askQuestion = async () => {
+    setInterviewState('generating_audio');
+    setQuestionAudio(null);
+    const result = await getAudio(currentQuestion.Question);
+    if (result.error) {
+        toast({ title: 'Could not generate audio', description: result.error, variant: 'destructive'});
+        setInterviewState('idle');
+    } else if (result.data) {
+        setQuestionAudio(result.data);
+        setInterviewState('speaking_question');
+    }
+  }
+
+  useEffect(() => {
+    if (questionAudio && audioRef.current) {
+        audioRef.current.play();
+    }
+  }, [questionAudio]);
+
 
   const renderContent = () => {
     if (isLoading) {
@@ -482,14 +536,62 @@ export default function Home() {
               <CardDescription>You've completed all questions for the {selectedRole} role.</CardDescription>
             </CardHeader>
             <CardContent>
-              <p>You can now start a mock interview, or start over with a new file or a different role.</p>
+              <p>You're ready for the next step. You can start a mock interview or begin a new assessment.</p>
             </CardContent>
             <CardFooter className="flex-col gap-2">
-               <Button disabled className="w-full">Start Mock Interview (Coming Soon)</Button>
+               <Button onClick={startMockInterview} className="w-full">Start Mock Interview</Button>
               <Button onClick={startOver} className="w-full" variant="outline">Start New Assessment</Button>
             </CardFooter>
           </Card>
         );
+
+      case 'mock_interview':
+        return (
+            <Card className="w-full max-w-3xl mx-auto animate-in fade-in-50 duration-500">
+                <CardHeader>
+                    <p className="text-sm font-medium text-primary">{selectedRole} Mock Interview</p>
+                    <Progress value={((currentQuestionIndex + 1) / questions.length) * 100} className="w-full h-2" />
+                    <CardTitle className="font-headline text-2xl pt-4">Question {currentQuestionIndex + 1}</CardTitle>
+                    <CardDescription>{currentQuestion?.Question}</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                    {questionAudio && <audio ref={audioRef} src={questionAudio} onEnded={() => setInterviewState('listening')} hidden />}
+
+                    <div className="flex flex-col items-center gap-4">
+                         {interviewState === 'idle' && <Button onClick={askQuestion}>Ask Question</Button>}
+
+                         {interviewState === 'generating_audio' && (
+                             <div className="flex items-center gap-2 text-muted-foreground">
+                                <LoaderCircle className="animate-spin" /> Thinking...
+                             </div>
+                         )}
+
+                         {interviewState === 'speaking_question' && (
+                              <Button variant="outline" disabled>
+                                <Play className="mr-2" /> Speaking...
+                              </Button>
+                         )}
+
+                          {interviewState === 'listening' && (
+                            <Button variant="destructive">
+                              <Mic className="mr-2" /> Listening...
+                            </Button>
+                          )}
+
+                         {interviewState === 'evaluating' && (
+                             <div className="flex items-center gap-2 text-muted-foreground">
+                                <LoaderCircle className="animate-spin" /> Evaluating...
+                             </div>
+                         )}
+                    </div>
+                </CardContent>
+                <CardFooter className="justify-between">
+                    <Button variant="outline" onClick={startOver}>End Interview</Button>
+                    {/* Add next question logic later */}
+                </CardFooter>
+            </Card>
+        )
+
       default:
         return null;
     }

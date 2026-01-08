@@ -11,12 +11,6 @@ export type ExcelData = {
   };
 };
 
-export type AssessUserAnswerOutput = {
-  score: number;
-  strengths: string;
-  gaps: string;
-};
-
 export type LearningResource = {
   title: string;
   url: string;
