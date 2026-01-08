@@ -48,6 +48,7 @@ export default function Home() {
   const [assessment, setAssessment] = useState<AssessUserAnswerOutput | null>(null);
   const [learningPlan, setLearningPlan] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [loadingMessage, setLoadingMessage] = useState('');
   const [learningPaths, setLearningPaths] = useState<string | null>(null);
   
   const { toast } = useToast();
@@ -66,12 +67,14 @@ export default function Home() {
 
   const handleFileUpload = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    setLoadingMessage('Parsing your file...');
     setIsLoading(true);
 
     const formData = new FormData(event.currentTarget);
     const result = await parseExcelFile(formData);
 
     setIsLoading(false);
+    setLoadingMessage('');
     if (result.error) {
       toast({
         variant: 'destructive',
@@ -97,6 +100,7 @@ export default function Home() {
 
   const handleRoleSelect = async (role: string) => {
     if (!excelData) return;
+    setLoadingMessage('Generating your personalized learning path...');
     setIsLoading(true);
     const result = await getLearningPaths({
       roleName: role,
@@ -104,6 +108,7 @@ export default function Home() {
       questions: excelData.roles[role]?.map(q => q.Question) ?? [],
     });
     setIsLoading(false);
+    setLoadingMessage('');
 
     if (result.error) {
       toast({
@@ -128,6 +133,7 @@ export default function Home() {
       });
       return;
     }
+    setLoadingMessage('Assessing your answer...');
     setIsLoading(true);
     const result = await assessAnswer({
       question: currentQuestion.Question,
@@ -136,6 +142,7 @@ export default function Home() {
       role: selectedRole,
     });
     setIsLoading(false);
+    setLoadingMessage('');
 
     if (result.error) {
       toast({
@@ -151,6 +158,7 @@ export default function Home() {
 
   const handleGetLearningPlan = async () => {
     if (!assessment) return;
+    setLoadingMessage('Creating your learning plan...');
     setIsLoading(true);
     const result = await getLearningPlan({
       roleName: selectedRole,
@@ -158,6 +166,7 @@ export default function Home() {
       weakAreas: assessment.gaps,
     });
     setIsLoading(false);
+    setLoadingMessage('');
 
     if (result.error) {
       toast({
@@ -202,6 +211,7 @@ export default function Home() {
   
   const backToRoleSelect = () => {
     setView('role_select');
+    setSelectedRole('');
     setLearningPaths(null);
   }
   
@@ -220,7 +230,12 @@ export default function Home() {
 
   const renderContent = () => {
     if (isLoading) {
-      return <div className="flex flex-col items-center justify-center gap-4 text-muted-foreground"><LoaderCircle className="h-12 w-12 animate-spin text-primary" /> <p className="text-lg font-medium">Generating Learning Path...</p></div>;
+      return (
+        <div className="flex flex-col items-center justify-center gap-4 text-center text-muted-foreground">
+          <LoaderCircle className="h-12 w-12 animate-spin text-primary" />
+          <p className="text-lg font-medium">{loadingMessage || 'Loading...'}</p>
+        </div>
+      );
     }
 
     switch (view) {

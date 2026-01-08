@@ -23,7 +23,7 @@ export async function generateLearningPaths(input: {
   const GenerateLearningPathsOutputSchema = z.object({
     learningPath: z.string().describe('A markdown-formatted learning path with topics and links to learning resources.'),
   });
-
+  
   const generateLearningPathsFlow = ai.defineFlow(
     {
       name: 'generateLearningPathsFlow',
@@ -35,33 +35,18 @@ export async function generateLearningPaths(input: {
         name: 'generateLearningPathsPrompt',
         input: {schema: GenerateLearningPathsInputSchema},
         output: {schema: GenerateLearningPathsOutputSchema},
-        prompt: `You are an expert career coach and learning specialist. Your task is to create a structured learning path for a user preparing for an interview.
+        prompt: `You are an expert career coach. Based on the provided role, company, and sample questions, generate a structured learning path.
 
-First, analyze the provided role, company, and sample questions to identify the top 5-7 most critical skills (technical and soft).
+First, identify the top 5-7 most critical skills.
 
-Then, for each identified skill, provide a brief one-sentence description and a list of 2-3 high-quality, publicly accessible online resources (articles, tutorials, official documentation) for learning that skill.
+Then, for each skill, provide a one-sentence description and 2-3 public online resources (articles, tutorials, docs) for learning.
 
-Format the entire output in markdown.
+Format the entire output as a single markdown string.
 
-**Input:**
-Role: {{roleName}}
-Company: {{companyName}}
-Sample Questions:
+**Role:** {{roleName}}
+**Company:** {{companyName}}
+**Sample Questions:**
 {{#each questions}}- {{this}}\n{{/each}}
-
-**Output Format Example:**
-
-### Skill Name 1
-A brief one-sentence description of the skill.
-*   [Resource Title 1](https://example.com/link1)
-*   [Resource Title 2](https://example.com/link2)
-
-### Skill Name 2
-A brief one-sentence description of the skill.
-*   [Resource Title 1](https://example.com/link3)
-*   [Resource Title 2](https://example.com/link4)
-
-Generate the learning path based on the provided input.
 `,
       });
       const {output} = await prompt(flowInput);
