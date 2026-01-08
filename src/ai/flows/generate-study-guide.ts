@@ -11,6 +11,7 @@
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
+
 export const GenerateStudyGuideInputSchema = z.object({
   skills: z.array(z.string()).describe('The list of skills to generate a study guide for.'),
 });

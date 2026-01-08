@@ -25,7 +25,6 @@ export const AssessUserAnswerOutputSchema = z.object({
   gaps: z.string().describe('A summary of the gaps or areas for improvement in the user’s answer.'),
 });
 
-
 export async function assessUserAnswer(input: z.infer<typeof AssessUserAnswerInputSchema>): Promise<z.infer<typeof AssessUserAnswerOutputSchema>> {
   const assessUserAnswerFlow = ai.defineFlow(
     {

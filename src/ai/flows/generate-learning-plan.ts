@@ -17,13 +17,12 @@ export const GenerateLearningPlanInputSchema = z.object({
   weakAreas: z.string().describe('The weak areas identified in the user assessment.'),
 });
 
-
 export const GenerateLearningPlanOutputSchema = z.object({
   learningPlan: z.string().describe('A topic-wise learning plan to address the identified weak areas.'),
 });
 
-
 export async function generateLearningPlan(input: z.infer<typeof GenerateLearningPlanInputSchema>): Promise<z.infer<typeof GenerateLearningPlanOutputSchema>> {
+
   const generateLearningPlanFlow = ai.defineFlow(
     {
       name: 'generateLearningPlanFlow',

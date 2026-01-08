@@ -11,6 +11,7 @@
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
+
 export const GenerateSkillsInputSchema = z.object({
   roleName: z.string().describe('The name of the role the user is preparing for.'),
   companyName: z.string().describe('The name of the company.'),
@@ -20,7 +21,9 @@ export const GenerateSkillsOutputSchema = z.object({
   skills: z.array(z.string()).describe('A list of key skills required for the role.'),
 });
 
+
 export async function generateSkillsForRole(input: z.infer<typeof GenerateSkillsInputSchema>): Promise<z.infer<typeof GenerateSkillsOutputSchema>> {
+
   const generateSkillsFlow = ai.defineFlow(
     {
       name: 'generateSkillsFlow',
