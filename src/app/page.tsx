@@ -372,7 +372,7 @@ export default function Home() {
                     <Button 
                       key={role} 
                       variant="outline" 
-                      className="h-20 text-lg"
+                      className="h-24 text-base p-2 flex items-center justify-center text-center whitespace-normal"
                       onClick={() => setSelectedRole(role)}
                     >
                       {role}
