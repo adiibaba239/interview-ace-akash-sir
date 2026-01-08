@@ -16,3 +16,16 @@ export type AssessUserAnswerOutput = {
   strengths: string;
   gaps: string;
 };
+
+export type LearningResource = {
+  title: string;
+  url: string;
+};
+
+export type Skill = {
+  skill: string;
+  description: string;
+  resources: LearningResource[];
+};
+
+export type LearningPath = Skill[];

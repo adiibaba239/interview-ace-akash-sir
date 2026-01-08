@@ -15,6 +15,7 @@ import {
   Sparkles,
   ArrowRight,
   GraduationCap,
+  LinkIcon,
 } from 'lucide-react';
 import { Header } from '@/components/Header';
 import { Button } from '@/components/ui/button';
@@ -26,9 +27,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { assessAnswer, getLearningPlan, parseExcelFile, getLearningPaths } from './actions';
-import type { ExcelData, Question, AssessUserAnswerOutput } from '@/lib/types';
+import type { ExcelData, Question, AssessUserAnswerOutput, LearningPath } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { Checkbox } from '@/components/ui/checkbox';
 
 type ViewState =
   | 'upload'
@@ -49,8 +51,9 @@ export default function Home() {
   const [learningPlan, setLearningPlan] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState('');
-  const [learningPaths, setLearningPaths] = useState<string | null>(null);
-  
+  const [learningPaths, setLearningPaths] = useState<LearningPath | null>(null);
+  const [completedSkills, setCompletedSkills] = useState<string[]>([]);
+
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -64,6 +67,11 @@ export default function Home() {
   const currentQuestion = useMemo(() => {
     return questions[currentQuestionIndex];
   }, [questions, currentQuestionIndex]);
+
+  const learningProgress = useMemo(() => {
+    if (!learningPaths || learningPaths.length === 0) return 0;
+    return (completedSkills.length / learningPaths.length) * 100;
+  }, [learningPaths, completedSkills]);
 
   const handleFileUpload = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -102,6 +110,8 @@ export default function Home() {
     if (!excelData) return;
     setLoadingMessage('Generating your personalized learning path...');
     setIsLoading(true);
+    setLearningPaths(null);
+    setCompletedSkills([]);
     const result = await getLearningPaths({
       roleName: role,
       companyName: excelData.company,
@@ -118,7 +128,7 @@ export default function Home() {
       });
       setView('role_select');
     } else if (result.data) {
-      setLearningPaths(result.data.learningPath);
+      setLearningPaths(result.data);
       setView('learning_path');
     }
   };
@@ -200,6 +210,7 @@ export default function Home() {
     setAssessment(null);
     setLearningPlan(null);
     setLearningPaths(null);
+    setCompletedSkills([]);
     if(fileInputRef.current) fileInputRef.current.value = '';
   };
   
@@ -213,6 +224,7 @@ export default function Home() {
     setView('role_select');
     setSelectedRole('');
     setLearningPaths(null);
+    setCompletedSkills([]);
   }
   
   const startAssessment = () => {
@@ -227,6 +239,16 @@ export default function Home() {
     }
     setView('assessment');
   };
+
+  const handleSkillCompletion = (skillName: string, isChecked: boolean) => {
+    setCompletedSkills(prev => {
+      if (isChecked) {
+        return [...prev, skillName];
+      } else {
+        return prev.filter(s => s !== skillName);
+      }
+    })
+  }
 
   const renderContent = () => {
     if (isLoading) {
@@ -289,22 +311,61 @@ export default function Home() {
         );
       
       case 'learning_path':
+        if (!learningPaths) return null;
         return (
-          <Card className="w-full max-w-3xl mx-auto animate-in fade-in-50 duration-500">
-            <CardHeader>
-              <CardTitle className="font-headline text-3xl flex items-center gap-3"><GraduationCap/> Learning Path</CardTitle>
-              <CardDescription>Here is your personalized study plan for the <strong>{selectedRole}</strong> role at <strong>{excelData?.company}</strong>.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="prose prose-blue dark:prose-invert max-w-none whitespace-pre-wrap rounded-md border bg-secondary/30 p-4 font-code text-sm">
-                {learningPaths}
-              </div>
-            </CardContent>
-            <CardFooter className="justify-between">
+          <div className="w-full max-w-4xl mx-auto animate-in fade-in-50 duration-500 space-y-6">
+            <div className="space-y-2 text-center">
+              <h1 className="font-headline text-3xl flex items-center justify-center gap-3"><GraduationCap/> Learning Path</h1>
+              <p className="text-muted-foreground">Your personalized study plan for the <strong>{selectedRole}</strong> role at <strong>{excelData?.company}</strong>.</p>
+            </div>
+            
+            <div className="space-y-2">
+                <Progress value={learningProgress} className="h-2" />
+                <p className="text-sm text-muted-foreground text-right">{Math.round(learningProgress)}% Complete</p>
+            </div>
+
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {learningPaths.map((skill) => (
+                <Card key={skill.skill} className="flex flex-col">
+                  <CardHeader>
+                    <CardTitle className="flex items-start gap-3">
+                      <Checkbox
+                        id={skill.skill}
+                        className="mt-1"
+                        onCheckedChange={(checked) => handleSkillCompletion(skill.skill, !!checked)}
+                        checked={completedSkills.includes(skill.skill)}
+                      />
+                      <label htmlFor={skill.skill} className="font-headline text-xl cursor-pointer">{skill.skill}</label>
+                    </CardTitle>
+                    <CardDescription>{skill.description}</CardDescription>
+                  </CardHeader>
+                  <CardContent className="flex-1 space-y-3">
+                    <h4 className="font-semibold text-sm">Resources:</h4>
+                    <div className="space-y-2">
+                      {skill.resources.map((resource) => (
+                        <a 
+                          key={resource.url} 
+                          href={resource.url} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-2 text-sm text-primary hover:underline"
+                        >
+                          <LinkIcon className="w-4 h-4" />
+                          <span>{resource.title}</span>
+                        </a>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+
+            <div className="flex justify-between items-center pt-4">
               <Button variant="ghost" onClick={backToRoleSelect}><ChevronLeft/> Back to Roles</Button>
               <Button onClick={startAssessment}>I'm Ready! Start Assessment <ArrowRight className="ml-2 w-4 h-4" /></Button>
-            </CardFooter>
-          </Card>
+            </div>
+          </div>
         );
 
       case 'assessment':

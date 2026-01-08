@@ -4,8 +4,7 @@ import * as xlsx from 'xlsx';
 import { assessUserAnswer } from '@/ai/flows/assess-user-answer';
 import { generateLearningPlan } from '@/ai/flows/generate-learning-plan';
 import { generateLearningPaths } from '@/ai/flows/generate-learning-paths';
-import type { ExcelData, Question, AssessUserAnswerOutput } from '@/lib/types';
-import { z } from 'zod';
+import type { ExcelData, Question, LearningPath } from '@/lib/types';
 
 // Helper to normalize column headers
 const normalizeHeader = (header: string) => header.trim().toLowerCase();
@@ -95,7 +94,12 @@ export async function parseExcelFile(
 }
 
 
-export async function assessAnswer(input: Parameters<typeof assessUserAnswer>[0]): Promise<{ data?: Awaited<ReturnType<typeof assessUserAnswer>>, error?: string }> {
+export async function assessAnswer(input: {
+  question: string;
+  userAnswer: string;
+  expectedAnswer?: string;
+  role: string;
+}): Promise<{ data?: Awaited<ReturnType<typeof assessUserAnswer>>, error?: string }> {
   try {
     const result = await assessUserAnswer(input);
     return { data: result };
@@ -105,7 +109,11 @@ export async function assessAnswer(input: Parameters<typeof assessUserAnswer>[0]
   }
 }
 
-export async function getLearningPlan(input: Parameters<typeof generateLearningPlan>[0]): Promise<{ data?: Awaited<ReturnType<typeof generateLearningPlan>>, error?: string }> {
+export async function getLearningPlan(input: {
+  roleName: string;
+  questions: string[];
+  weakAreas: string;
+}): Promise<{ data?: Awaited<ReturnType<typeof generateLearningPlan>>, error?: string }> {
   try {
     const result = await generateLearningPlan(input);
     return { data: result };
@@ -115,10 +123,14 @@ export async function getLearningPlan(input: Parameters<typeof generateLearningP
   }
 }
 
-export async function getLearningPaths(input: Parameters<typeof generateLearningPaths>[0]): Promise<{ data?: Awaited<ReturnType<typeof generateLearningPaths>>, error?: string }> {
+export async function getLearningPaths(input: {
+  roleName: string;
+  companyName: string;
+  questions: string[];
+}): Promise<{ data?: LearningPath, error?: string }> {
   try {
     const result = await generateLearningPaths(input);
-    return { data: result };
+    return { data: result.learningPath };
   } catch (error) {
     console.error("AI learning paths generation error:", error);
     return { error: "Failed to generate learning paths from AI. Please try again." };
