@@ -1,10 +1,10 @@
 'use server';
 
 import * as xlsx from 'xlsx';
-import { assessUserAnswer } from '@/ai/flows/assess-user-answer';
 import { generateLearningPlan } from '@/ai/flows/generate-learning-plan';
 import { generateLearningPaths } from '@/ai/flows/generate-learning-paths';
-import type { ExcelData, Question, LearningPath } from '@/lib/types';
+import { generateMcq } from '@/ai/flows/generate-mcq';
+import type { ExcelData, Question, LearningPath, Mcq } from '@/lib/types';
 
 // Helper to normalize column headers
 const normalizeHeader = (header: string) => header.trim().toLowerCase();
@@ -93,22 +93,6 @@ export async function parseExcelFile(
   }
 }
 
-
-export async function assessAnswer(input: {
-  question: string;
-  userAnswer: string;
-  expectedAnswer?: string;
-  role: string;
-}): Promise<{ data?: Awaited<ReturnType<typeof assessUserAnswer>>, error?: string }> {
-  try {
-    const result = await assessUserAnswer(input);
-    return { data: result };
-  } catch (error) {
-    console.error("AI assessment error:", error);
-    return { error: "Failed to get assessment from AI. Please try again." };
-  }
-}
-
 export async function getLearningPlan(input: {
   roleName: string;
   questions: string[];
@@ -134,5 +118,18 @@ export async function getLearningPaths(input: {
   } catch (error) {
     console.error("AI learning paths generation error:", error);
     return { error: "Failed to generate learning paths from AI. Please try again." };
+  }
+}
+
+export async function getMcq(input: {
+  question: string;
+  role: string;
+}): Promise<{ data?: Mcq, error?: string }> {
+  try {
+    const result = await generateMcq(input);
+    return { data: result };
+  } catch (error) {
+    console.error("AI MCQ generation error:", error);
+    return { error: "Failed to generate MCQ from AI. Please try again." };
   }
 }

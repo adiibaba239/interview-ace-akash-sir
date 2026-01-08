@@ -29,3 +29,9 @@ export type Skill = {
 };
 
 export type LearningPath = Skill[];
+
+export type Mcq = {
+  mcqQuestion: string;
+  options: string[];
+  correctAnswer: string;
+};

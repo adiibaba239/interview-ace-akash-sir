@@ -24,13 +24,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { assessAnswer, getLearningPlan, parseExcelFile, getLearningPaths } from './actions';
-import type { ExcelData, Question, AssessUserAnswerOutput, LearningPath } from '@/lib/types';
+import { getLearningPlan, parseExcelFile, getLearningPaths, getMcq } from './actions';
+import type { ExcelData, Question, Mcq, LearningPath } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Checkbox } from '@/components/ui/checkbox';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 
 type ViewState =
   | 'upload'
@@ -46,8 +46,9 @@ export default function Home() {
   const [excelData, setExcelData] = useState<ExcelData | null>(null);
   const [selectedRole, setSelectedRole] = useState<string>('');
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [mcq, setMcq] = useState<Mcq | null>(null);
   const [userAnswer, setUserAnswer] = useState('');
-  const [assessment, setAssessment] = useState<AssessUserAnswerOutput | null>(null);
+  const [isAnswerCorrect, setIsAnswerCorrect] = useState<boolean | null>(null);
   const [learningPlan, setLearningPlan] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState('');
@@ -103,7 +104,7 @@ export default function Home() {
     if (selectedRole && excelData) {
       handleRoleSelect(selectedRole);
     }
-  }, [selectedRole]);
+  }, [selectedRole, excelData]);
 
 
   const handleRoleSelect = async (role: string) => {
@@ -133,47 +134,56 @@ export default function Home() {
     }
   };
 
-
-  const handleAnswerSubmit = async () => {
-    if (!currentQuestion || !userAnswer.trim()) {
-      toast({
-        variant: 'destructive',
-        title: 'Empty Answer',
-        description: 'Please provide an answer before submitting.',
-      });
-      return;
-    }
-    setLoadingMessage('Assessing your answer...');
+  const handleGenerateMcq = async () => {
+    setLoadingMessage('Generating question...');
     setIsLoading(true);
-    const result = await assessAnswer({
+    setMcq(null);
+    setUserAnswer('');
+    setView('assessment');
+    
+    const result = await getMcq({
       question: currentQuestion.Question,
-      userAnswer,
-      expectedAnswer: currentQuestion['Expected Answer'],
       role: selectedRole,
     });
+    
     setIsLoading(false);
     setLoadingMessage('');
 
     if (result.error) {
       toast({
         variant: 'destructive',
-        title: 'Assessment Failed',
+        title: 'MCQ Generation Failed',
         description: result.error,
       });
+      setView('learning_path'); // Go back if generation fails
     } else if (result.data) {
-      setAssessment(result.data);
-      setView('feedback');
+      setMcq(result.data);
     }
   };
 
+
+  const handleAnswerSubmit = async () => {
+    if (!mcq || !userAnswer) {
+      toast({
+        variant: 'destructive',
+        title: 'No Answer Selected',
+        description: 'Please select an answer before submitting.',
+      });
+      return;
+    }
+    const isCorrect = userAnswer === mcq.correctAnswer;
+    setIsAnswerCorrect(isCorrect);
+    setView('feedback');
+  };
+
   const handleGetLearningPlan = async () => {
-    if (!assessment) return;
+    if (!mcq) return;
     setLoadingMessage('Creating your learning plan...');
     setIsLoading(true);
     const result = await getLearningPlan({
       roleName: selectedRole,
-      questions: questions.map(q => q.Question),
-      weakAreas: assessment.gaps,
+      questions: [currentQuestion.Question],
+      weakAreas: `User failed to answer this question correctly: "${mcq.mcqQuestion}". The correct answer is "${mcq.correctAnswer}".`,
     });
     setIsLoading(false);
     setLoadingMessage('');
@@ -193,13 +203,20 @@ export default function Home() {
   const goToNextQuestion = () => {
     if (currentQuestionIndex < questions.length - 1) {
       setCurrentQuestionIndex(currentQuestionIndex + 1);
-      setView('assessment');
+      // We will trigger MCQ generation in an effect
     } else {
       setView('completed');
     }
-    setAssessment(null);
+    setIsAnswerCorrect(null);
+    setMcq(null);
     setUserAnswer('');
   };
+
+  useEffect(() => {
+    if (view === 'assessment' && !mcq && !isLoading) {
+      handleGenerateMcq();
+    }
+  }, [view, currentQuestionIndex]);
 
   const startOver = () => {
     setView('upload');
@@ -207,7 +224,8 @@ export default function Home() {
     setSelectedRole('');
     setCurrentQuestionIndex(0);
     setUserAnswer('');
-    setAssessment(null);
+    setIsAnswerCorrect(null);
+    setMcq(null);
     setLearningPlan(null);
     setLearningPaths(null);
     setCompletedSkills([]);
@@ -216,8 +234,9 @@ export default function Home() {
   
   const tryAgain = () => {
     setView('assessment');
-    setAssessment(null);
+    setIsAnswerCorrect(null);
     setLearningPlan(null);
+    handleGenerateMcq();
   };
   
   const backToRoleSelect = () => {
@@ -237,6 +256,7 @@ export default function Home() {
        setView('role_select');
       return;
     }
+    setCurrentQuestionIndex(0);
     setView('assessment');
   };
 
@@ -374,18 +394,19 @@ export default function Home() {
              <CardHeader>
               <p className="text-sm font-medium text-primary">{selectedRole} Assessment</p>
               <Progress value={((currentQuestionIndex + 1) / questions.length) * 100} className="w-full h-2" />
-              <CardTitle className="font-headline text-2xl pt-4">{currentQuestion?.Question}</CardTitle>
+              <CardTitle className="font-headline text-2xl pt-4">{mcq?.mcqQuestion}</CardTitle>
+              <CardDescription>Based on the question: "{currentQuestion?.Question}"</CardDescription>
               {currentQuestion?.Difficulty && <Badge variant="secondary" className="w-fit">{currentQuestion.Difficulty}</Badge>}
             </CardHeader>
             <CardContent>
-              <Label htmlFor="user-answer" className="font-bold text-lg mb-2 block">Your Answer:</Label>
-              <Textarea
-                id="user-answer"
-                value={userAnswer}
-                onChange={(e) => setUserAnswer(e.target.value)}
-                placeholder="Type your answer here..."
-                rows={10}
-              />
+              <RadioGroup value={userAnswer} onValueChange={setUserAnswer} className="space-y-4">
+                {mcq?.options.map((option, index) => (
+                  <Label key={index} htmlFor={`option-${index}`} className="flex items-center gap-4 p-4 border rounded-md cursor-pointer hover:bg-accent has-[[data-state=checked]]:bg-secondary has-[[data-state=checked]]:border-primary">
+                    <RadioGroupItem value={option} id={`option-${index}`} />
+                    <span>{option}</span>
+                  </Label>
+                ))}
+              </RadioGroup>
             </CardContent>
             <CardFooter className="justify-between">
               <Button variant="outline" onClick={startOver}>Start Over</Button>
@@ -394,35 +415,40 @@ export default function Home() {
           </Card>
         );
       case 'feedback':
-        if (!assessment) return null;
-        const isWeak = assessment.score < 70;
+        if (!mcq) return null;
         return(
           <Card className="w-full max-w-3xl mx-auto animate-in fade-in-50 duration-500">
-            <CardHeader>
-                <CardTitle className="font-headline text-3xl">Assessment Feedback</CardTitle>
-                <p className="text-muted-foreground">{currentQuestion.Question}</p>
+            <CardHeader className="items-center text-center">
+                {isAnswerCorrect ? (
+                  <>
+                    <CheckCircle2 className="w-16 h-16 text-green-600" />
+                    <CardTitle className="font-headline text-3xl">Correct!</CardTitle>
+                  </>
+                ) : (
+                  <>
+                    <XCircle className="w-16 h-16 text-destructive" />
+                    <CardTitle className="font-headline text-3xl">Incorrect</CardTitle>
+                  </>
+                )}
+                 <p className="text-muted-foreground pt-2">{mcq.mcqQuestion}</p>
             </CardHeader>
-            <CardContent className="space-y-6">
-                <div className="text-center">
-                    <p className="text-sm text-muted-foreground">Your Score</p>
-                    <p className={`font-bold text-7xl ${isWeak ? 'text-destructive' : 'text-green-600'}`}>{assessment.score}<span className="text-2xl text-muted-foreground">/100</span></p>
-                </div>
+            <CardContent className="space-y-4 text-center">
                 <Separator />
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-2">
-                        <h3 className="font-bold text-xl flex items-center gap-2 text-green-700"><CheckCircle2/> Strengths</h3>
-                        <p className="text-muted-foreground">{assessment.strengths}</p>
-                    </div>
-                    <div className="space-y-2">
-                        <h3 className="font-bold text-xl flex items-center gap-2 text-destructive"><XCircle/> Gaps</h3>
-                        <p className="text-muted-foreground">{assessment.gaps}</p>
-                    </div>
+                <div className="space-y-2">
+                    <h3 className="font-bold text-xl">Your Answer</h3>
+                    <p className={`font-semibold ${isAnswerCorrect ? 'text-green-700' : 'text-destructive'}`}>{userAnswer}</p>
                 </div>
+                 {!isAnswerCorrect && (
+                    <div className="space-y-2">
+                        <h3 className="font-bold text-xl">Correct Answer</h3>
+                        <p className="font-semibold text-green-700">{mcq.correctAnswer}</p>
+                    </div>
+                )}
             </CardContent>
             <CardFooter className="justify-between">
               <Button variant="ghost" onClick={tryAgain}><ChevronLeft className="mr-2 h-4 w-4" />Try Again</Button>
               <div className="flex gap-2">
-                {isWeak && <Button onClick={handleGetLearningPlan}><Lightbulb className="mr-2 h-4 w-4" />Get LearningPlan</Button>}
+                {!isAnswerCorrect && <Button onClick={handleGetLearningPlan}><Lightbulb className="mr-2 h-4 w-4" />Get Learning Plan</Button>}
                 <Button onClick={goToNextQuestion}>Next Question <ChevronRight className="ml-2 h-4 w-4"/></Button>
               </div>
             </CardFooter>
